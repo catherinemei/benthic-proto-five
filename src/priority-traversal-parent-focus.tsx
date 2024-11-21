@@ -38,12 +38,6 @@ export function TraversalOutputComponentKeyboardParentFocus(
     return props.nodeGraph[0]; // Default to the first node if none is selected
   });
 
-  const calculateParentIndex = () => {
-    const parents = props.nodeGraph[currentNodeId()!].parents;
-    const previousNodeId = history()[history().length - 2];
-    return parents.indexOf(previousNodeId);
-  };
-
   const findAllSiblingsOfNode = (nodeId: string) => {
     const parents = props.nodeGraph[nodeId].parents;
     const siblings = new Set<string>();
@@ -55,6 +49,7 @@ export function TraversalOutputComponentKeyboardParentFocus(
     return siblings;
   };
 
+  // TODO FIX THIS
   const handleNodeClick = (oldId: string, newId: string) => {
     if (oldId === newId) {
       return;
@@ -95,18 +90,10 @@ export function TraversalOutputComponentKeyboardParentFocus(
   };
   const handleKeyPress = (event: KeyboardEvent) => {
     if (event.key === "ArrowUp" && event.shiftKey) {
-      const focusedElement = document.activeElement as HTMLElement;
-      const focusedElementId = focusedElement?.id;
       // Navigate up through the parent focus using history
       const historyList = history();
-      if (focusedElementId.startsWith("children")) {
-        // Only occurs when node contains no children
-        // then Shift + ArrowUp returns to current node in focus
-        const currentNode = document.getElementById(`info-${currentNodeId()}`);
-        if (currentNode) {
-          currentNode.focus();
-        }
-      } else if (historyList.length > 2) {
+
+      if (historyList.length > 2) {
         const curNodeId = historyList.pop();
         const parentNodeId = historyList[historyList.length - 1];
         const grandParentNodeId = historyList[historyList.length - 2];
@@ -174,11 +161,6 @@ export function TraversalOutputComponentKeyboardParentFocus(
           if (newSection) {
             newSection.focus();
           }
-        } else {
-          const childSection = document.getElementById(`children-group`);
-          if (childSection) {
-            childSection.focus();
-          }
         }
       }
       event.preventDefault();
@@ -194,37 +176,8 @@ export function TraversalOutputComponentKeyboardParentFocus(
         titleSection?.focus();
       }
     } else if (event.key === "p") {
-      const parents = props.nodeGraph[currentNodeId()!].parents;
-      if (parents.length > 0) {
-        // Get the current parent index from history, and cycle to the next parent
-        let parentIndex = calculateParentIndex();
-        let nextIndex = (parentIndex + 1) % parents.length;
-
-        const nextParentId = parents[nextIndex];
-        let curHistory = history();
-        const curNodeId = curHistory.pop();
-        const oldParent = curHistory.pop();
-        setHistory((prev) => [...curHistory, nextParentId, currentNodeId()!]);
-
-        const parentContext = document.getElementById("parent-context");
-        const curNodeSection = document.getElementById(`info-${curNodeId}`);
-
-        if (parentContext) {
-          parentContext.innerHTML = `Grouping by ${props.nodeGraph[nextParentId].displayName}`;
-          parentContext.setAttribute(
-            "aria-label",
-            `Grouping by ${props.nodeGraph[nextParentId].displayName}`
-          );
-          parentContext.focus();
-        }
-
-        setTimeout(() => {
-          if (curNodeSection) {
-            curNodeSection.focus();
-          }
-        }, 2000);
-      }
-      event.preventDefault();
+      const parentContextGroup = document.getElementById(`parent-context`);
+      parentContextGroup?.focus();
     } else if (event.key === "Backspace") {
       setHistory((prev) => {
         const newHistory = [...prev];
@@ -289,32 +242,72 @@ export function TraversalOutputComponentKeyboardParentFocus(
         elmInGroup[newIndex]?.focus();
 
         event.preventDefault();
+      } else if (focusedElementId.startsWith("context")) {
+        // Navigating around while on one of the nodes within parent-context list
+        const contextElms = Array.from(
+          document.querySelectorAll(`#parent-context li`)
+        ) as HTMLElement[];
+
+        const currentIndex = contextElms.indexOf(focusedElement);
+        let newIndex = currentIndex;
+
+        if (
+          (event.key === "ArrowLeft" || event.key === "ArrowUp") &&
+          currentIndex > 0
+        ) {
+          newIndex = currentIndex - 1;
+        } else if (
+          (event.key === "ArrowRight" || event.key === "ArrowDown") &&
+          currentIndex < contextElms.length - 1
+        ) {
+          newIndex = currentIndex + 1;
+        }
+        contextElms[newIndex]?.focus();
+      } else if (focusedElementId === "parent-context") {
+        // Pressed "p" and just moved focus to parent-context list then focus on first element in list
+        const contextElms = Array.from(
+          document.querySelectorAll(`#parent-context li`)
+        ) as HTMLElement[];
+        contextElms[0]?.focus();
+      } else {
+        event.preventDefault();
+      }
+    } else if (event.key === "Enter") {
+      const focusedElement = document.activeElement as HTMLElement;
+      const focusedElementId = focusedElement?.id;
+
+      if (focusedElementId.startsWith("info-")) {
+        const firstChildId = props.nodeGraph[currentNodeId()!].children[0];
+        if (firstChildId) {
+          // update history list with traversed children node
+          setHistory((prev) => [...prev, firstChildId]);
+
+          setCurrentNodeId(firstChildId);
+
+          const newSection = document.getElementById(`info-${firstChildId}`);
+          if (newSection) {
+            newSection.focus();
+          }
+        }
+      } else if (focusedElementId.startsWith("context")) {
+        const newParentId = focusedElementId.split("-")[3];
+        let curHistory = history();
+        const curNodeId = curHistory.pop();
+        const oldParent = curHistory.pop();
+        setHistory((prev) => [...curHistory, newParentId, currentNodeId()!]);
+        setCurrentNodeId(currentNodeId());
+
+        const newCurrentNodeSection = document.getElementById(
+          `info-${currentNodeId()}`
+        );
+        if (newCurrentNodeSection) {
+          newCurrentNodeSection.focus();
+        }
       } else {
         event.preventDefault();
       }
     } else {
       event.preventDefault();
-    }
-
-    const parentContext = document.getElementById("parent-context");
-    if (parentContext) {
-      if (history().length > 1) {
-        parentContext.innerHTML = `Grouping by ${
-          props.nodeGraph[history()[history().length - 2]].displayName
-        }`;
-        parentContext.setAttribute(
-          "aria-label",
-          `Grouping by ${
-            props.nodeGraph[history()[history().length - 2]].displayName
-          }`
-        );
-      } else {
-        parentContext.innerHTML = `Node belongs to no groupings`;
-        parentContext.setAttribute(
-          "aria-label",
-          `Node belongs to no groupings`
-        );
-      }
     }
   };
 
@@ -333,6 +326,9 @@ export function TraversalOutputComponentKeyboardParentFocus(
     <Show when={currentNodeId()}>
       <HypergraphNodeComponentKeyboardOnly
         history={history()}
+        parentFocusId={
+          history().length > 1 ? history()[history().length - 2] : "-1"
+        }
         node={currentNode()}
         nodeGraph={props.nodeGraph}
         onNodeClick={handleNodeClick}
@@ -351,7 +347,7 @@ export function HypergraphNodeComponentKeyboardOnly(
   // based on the parent node in focus, siblings are the child nodes of that parent
   // history can be found as props.history
   function findSiblings(currentId: string) {
-    if (!props.history || props.history.length < 2) {
+    if (props.history.length == 1) {
       return [currentId];
     } else {
       const parentFocus = props.history[props.history.length - 2];
@@ -359,30 +355,6 @@ export function HypergraphNodeComponentKeyboardOnly(
       return siblings;
     }
   }
-
-  const sortedParents = createMemo(() =>
-    props.node.parents
-      .map((parentId) => props.nodeGraph[parentId])
-      .sort((a, b) => a.priority - b.priority)
-  );
-
-  const collectParentNames = createMemo(() => {
-    return sortedParents()
-      .map((parentNode) => parentNode.descriptionTokens?.label)
-      .join(", ");
-  });
-
-  const sortedChildren = createMemo(() =>
-    props.node.children
-      .map((childId) => props.nodeGraph[childId])
-      .sort((a, b) => a.priority - b.priority)
-  );
-
-  const collectChildrenNames = createMemo(() => {
-    return sortedChildren()
-      .map((childNode) => childNode.descriptionTokens?.label)
-      .join(", ");
-  });
 
   const sortAdjacents = createMemo(() => {
     const adjacentNodeIds = findSiblings(props.node.id);
@@ -402,39 +374,41 @@ export function HypergraphNodeComponentKeyboardOnly(
     return adjacentNodes;
   });
 
+  const nonFocusedParentIds = createMemo(() => {
+    const parentIds = props.node.parents;
+
+    // Root node - has no parents, so no non-focused parents
+    if (props.history.length == 1) {
+      return [];
+    }
+    const nonFocusedParents = parentIds.filter(
+      (parentId) => parentId !== props.parentFocusId
+    );
+
+    return nonFocusedParents;
+  });
+
+  const nonFocusedParents = createMemo(() => {
+    return nonFocusedParentIds().map((parentId) => props.nodeGraph[parentId]);
+  });
+
   return (
     <div>
       <ul
         id="parents-group"
-        aria-label={
-          props.node.parents.length == 0
-            ? `${props.node.displayName} belongs to 0 groups`
-            : `${props.node.displayName} belongs to ${
-                sortedParents().length
-              } groups`
-        }
         tabindex="0"
+        aria-label={`${props.node.displayName} belongs to ${
+          props.parentFocusId === "-1"
+            ? "no groups"
+            : props.nodeGraph[props.parentFocusId].displayName
+        }`}
       >
-        <span style={{ "font-weight": "bold" }}>Belongs to</span>
-        <For each={sortedParents()}>
-          {(parent, idx) => (
-            <li
-              id={`parents-${props.node.id}-${idx()}`}
-              aria-label={`${parent.displayName} group`}
-              onClick={() => props.onNodeClick(props.node.id, parent.id)}
-            >
-              <span aria-hidden="true">{parent.displayName} group</span>
-            </li>
-          )}
-        </For>
-      </ul>
-
-      <ul
-        id="parent-context"
-        tabindex="0"
-        aria-label="Node belongs to no groupings"
-      >
-        <span aria-hidden={true}>Node belongs to no groupings</span>
+        <span aria-hidden={true} style={{ "font-weight": "bold" }}>
+          {props.node.displayName} belongs to{" "}
+          {props.parentFocusId === "-1"
+            ? "no groups"
+            : props.nodeGraph[props.parentFocusId].displayName}
+        </span>
       </ul>
 
       <ul id="home" tabindex="0" aria-live="assertive">
@@ -458,31 +432,31 @@ export function HypergraphNodeComponentKeyboardOnly(
       </ul>
 
       <ul
-        id="children-group"
+        id="parent-context"
         aria-label={
-          props.node.children.length === 0
-            ? `${props.node.displayName} contains no nodes`
-            : `${props.node.displayName} contains ${
-                sortedChildren().length
-              } nodes`
+          props.node.parents.length == 0
+            ? `${props.node.displayName} belongs to 0 additional groups`
+            : `${props.node.displayName} belongs to ${
+                nonFocusedParentIds().length
+              } additional groups. Press arrow keys to navigate and press Enter to confirm selection.`
         }
         tabindex="0"
       >
-        <span style={{ "font-weight": "bold" }} aria-hidden={true}>
-          Contains
-        </span>
-        <For each={sortedChildren()}>
-          {(child, idx) => (
+        <span style={{ "font-weight": "bold" }}>Belongs to</span>
+        <For each={nonFocusedParents()}>
+          {(parent, idx) => (
             <li
-              id={`children-${props.node.id}-${idx()}`}
-              aria-label={child.displayName}
-              onClick={() => props.onNodeClick(props.node.id, child.id)}
+              id={`context-${props.node.id}-${idx()}-${parent.id}`}
+              aria-label={`${parent.displayName} group`}
+              onClick={() => props.onNodeClick(props.node.id, parent.id)}
+              tabIndex="0"
             >
-              <span aria-hidden="true">{child.displayName}</span>
+              <span aria-hidden="true">{parent.displayName} group</span>
             </li>
           )}
         </For>
       </ul>
+      <br />
 
       <ul id="undo-text" tabindex="0" aria-label="Pressing Undo">
         <span style={{ "font-weight": "bold" }} aria-hidden={true}>

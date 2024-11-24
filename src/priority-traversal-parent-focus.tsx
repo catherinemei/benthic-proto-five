@@ -66,6 +66,11 @@ export function TraversalOutputComponentKeyboardParentFocus(
     // 3. Click on parent focus; same as going up to parent
     // 4. Clicking on node in parent context; same as switching parent context (by pressing P)
 
+    console.log("clicking", oldId, newId, isFocusedParent);
+    if (oldId === "-1" || newId === "-1" || !oldId || !newId) {
+      return;
+    }
+
     const newNodeSiblings = findSiblingOfFocusedParent(oldId);
     let finalFocusedNode = newId;
 

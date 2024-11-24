@@ -46,7 +46,11 @@ export type TraversalOutputProps = {
 export type HypergraphNodeWithSiblingsProps = {
   node: RelationNodeWithSiblings;
   nodeGraph: HypergraphWithSibling;
-  onNodeClick: (curId: string, newId: string) => void;
+  onNodeClick: (
+    curId: string,
+    newId: string,
+    isFocusedParent?: boolean
+  ) => void;
 };
 
 export type HypergraphNodeProps = {
@@ -54,7 +58,11 @@ export type HypergraphNodeProps = {
   nodeGraph: Hypergraph;
   history: string[];
   parentFocusId: string;
-  onNodeClick: (curId: string, newId: string) => void;
+  onNodeClick: (
+    curId: string,
+    newId: string,
+    isFocusedParent?: boolean
+  ) => void;
 };
 
 export type VisualizerProps = {

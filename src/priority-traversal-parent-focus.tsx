@@ -38,47 +38,77 @@ export function TraversalOutputComponentKeyboardParentFocus(
     return props.nodeGraph[0]; // Default to the first node if none is selected
   });
 
-  const findAllSiblingsOfNode = (nodeId: string) => {
-    const parents = props.nodeGraph[nodeId].parents;
-    const siblings = new Set<string>();
-    for (const parentId of parents) {
-      for (const childId of props.nodeGraph[parentId].children) {
-        siblings.add(childId);
-      }
+  const findSiblingOfFocusedParent = (nodeId: string): string[] => {
+    if (history().length === 1) {
+      return [];
+    } else {
+      const focusedParent = history()[history().length - 2];
+      const allChildrenOfParent = props.nodeGraph[focusedParent].children;
+      const siblingsOnly = allChildrenOfParent.filter((childId) => {
+        return childId !== nodeId;
+      });
+
+      return siblingsOnly;
     }
-    return siblings;
+
+    return [];
   };
 
   // TODO FIX THIS
-  const handleNodeClick = (oldId: string, newId: string) => {
-    if (oldId === newId) {
-      return;
-    }
+  const handleNodeClick = (
+    oldId: string,
+    newId: string,
+    isFocusedParent?: boolean
+  ) => {
+    // 4 possibilities for clicking on current node
+    // 1. Click on an adjacent node (sibling), then focus moves to that sibling node; update history to be on that node
+    // 2. Click on the current focused node; same as pressing enter on this node, add to history and make it become focused parent
+    // 3. Click on parent focus; same as going up to parent
+    // 4. Clicking on node in parent context; same as switching parent context (by pressing P)
 
-    const newNodeSiblings = findAllSiblingsOfNode(newId);
+    const newNodeSiblings = findSiblingOfFocusedParent(oldId);
+    let finalFocusedNode = newId;
 
-    if (newNodeSiblings.has(oldId)) {
-      // If old and new ID are on same level (siblings)
-      // then pop most recent history node and add new node
+    if (newNodeSiblings.includes(newId)) {
+      // Case 1
       const curHistory = history();
       curHistory.pop();
       setHistory([...curHistory, newId]);
-    } else if (props.nodeGraph[oldId].parents.includes(newId)) {
+    } else if (newId === oldId) {
+      // Case 2
+      const childrenNodes = props.nodeGraph[newId].children;
+      if (childrenNodes.length > 0) {
+        // If node has children, then focus on first child
+        const firstChildId = childrenNodes[0];
+        setHistory([...history(), firstChildId]);
+        finalFocusedNode = firstChildId;
+      }
+    } else if (
+      props.nodeGraph[oldId].parents.includes(newId) &&
+      isFocusedParent
+    ) {
+      // Case 3
       // If new node is a parent of the old node
       // Then use the default path to the new node as new history
       const defaultPath = defaultPaths().get(newId);
       setHistory([...(defaultPath ?? ["0"])]);
-    } else if (props.nodeGraph[oldId].children.includes(newId)) {
-      // If new node is a child of the old node
-      // Then add new node to the history
-      setHistory((prev) => [...prev, newId]);
+    } else if (
+      props.nodeGraph[oldId].parents.includes(newId) &&
+      !isFocusedParent
+    ) {
+      // Case 4
+      const curHistory = history();
+      curHistory.pop();
+      curHistory.pop();
+      setHistory([...curHistory, newId, oldId]);
+      finalFocusedNode = oldId;
     }
 
-    setCurrentNodeId(newId);
+    setCurrentNodeId(finalFocusedNode);
 
     // Moves screen reader focus
     setTimeout(() => {
-      const newNode = document.getElementById(`info-${newId}`);
+      const newNode = document.getElementById(`info-${finalFocusedNode}`);
 
       if (newNode) {
         if (!newNode.hasAttribute("tabindex")) {
@@ -403,7 +433,13 @@ export function HypergraphNodeComponentKeyboardOnly(
             : props.nodeGraph[props.parentFocusId].displayName
         }`}
       >
-        <span aria-hidden={true} style={{ "font-weight": "bold" }}>
+        <span
+          aria-hidden={true}
+          style={{ "font-weight": "bold" }}
+          onClick={() =>
+            props.onNodeClick(props.node.id, props.parentFocusId, true)
+          }
+        >
           {props.node.displayName} belongs to{" "}
           {props.parentFocusId === "-1"
             ? "no groups"
@@ -448,7 +484,7 @@ export function HypergraphNodeComponentKeyboardOnly(
             <li
               id={`context-${props.node.id}-${idx()}-${parent.id}`}
               aria-label={`${parent.displayName} group`}
-              onClick={() => props.onNodeClick(props.node.id, parent.id)}
+              onClick={() => props.onNodeClick(props.node.id, parent.id, false)}
               tabIndex="0"
             >
               <span aria-hidden="true">{parent.displayName} group</span>

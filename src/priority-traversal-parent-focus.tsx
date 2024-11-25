@@ -475,8 +475,10 @@ export function HypergraphNodeComponentKeyboardOnly(
         tabindex="0"
         aria-label={
           nonFocusedParentIds().length === 0
-            ? `${props.node.displayName} belongs to 0 additional groups. Press h to return to previous node.`
-            : `${props.node.displayName} belongs to ${
+            ? `No current groupings. ${props.node.displayName} belongs to 0 additional groups. Press h to return to previous node.`
+            : `Currently grouping by ${
+                props.nodeGraph[props.parentFocusId].displayName
+              }. ${props.node.displayName} belongs to ${
                 nonFocusedParentIds().length
               } additional groups. Use arrow and enter keys to make selection.`
         }

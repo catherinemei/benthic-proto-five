@@ -50,11 +50,8 @@ export function TraversalOutputComponentKeyboardParentFocus(
 
       return siblingsOnly;
     }
-
-    return [];
   };
 
-  // TODO FIX THIS
   const handleNodeClick = (
     oldId: string,
     newId: string,
@@ -66,7 +63,6 @@ export function TraversalOutputComponentKeyboardParentFocus(
     // 3. Click on parent focus; same as going up to parent
     // 4. Clicking on node in parent context; same as switching parent context (by pressing P)
 
-    console.log("clicking", oldId, newId, isFocusedParent);
     if (oldId === "-1" || newId === "-1" || !oldId || !newId) {
       return;
     }
@@ -298,12 +294,14 @@ export function TraversalOutputComponentKeyboardParentFocus(
           newIndex = currentIndex + 1;
         }
         contextElms[newIndex]?.focus();
+        event.preventDefault();
       } else if (focusedElementId === "parent-context") {
         // Pressed "p" and just moved focus to parent-context list then focus on first element in list
         const contextElms = Array.from(
-          document.querySelectorAll(`#parent-context li`)
+          document.querySelectorAll(`#option-nodes li`)
         ) as HTMLElement[];
         contextElms[0]?.focus();
+        event.preventDefault();
       } else {
         event.preventDefault();
       }
@@ -474,21 +472,29 @@ export function HypergraphNodeComponentKeyboardOnly(
 
       <ul
         id="parent-context"
+        tabindex="0"
         aria-label={
-          props.node.parents.length == 0
-            ? `${props.node.displayName} belongs to 0 additional groups`
+          nonFocusedParentIds().length === 0
+            ? `${props.node.displayName} belongs to 0 additional groups. Press h to return to previous node.`
             : `${props.node.displayName} belongs to ${
                 nonFocusedParentIds().length
-              } additional groups. Press arrow keys to navigate and press Enter to confirm selection.`
+              } additional groups. Use arrow and enter keys to make selection.`
         }
-        tabindex="0"
+        style={{ "margin-bottom": "-10px" }}
       >
-        <span style={{ "font-weight": "bold" }}>Belongs to</span>
+        <span style={{ "font-weight": "bold" }} aria-hidden={true}>
+          Belongs to
+        </span>
+      </ul>
+
+      <ul tabindex="0" id="option-nodes">
         <For each={nonFocusedParents()}>
           {(parent, idx) => (
             <li
               id={`context-${props.node.id}-${idx()}-${parent.id}`}
-              aria-label={`${parent.displayName} group`}
+              aria-label={`${idx() + 1} of ${nonFocusedParentIds().length}. ${
+                parent.displayName
+              } group. Press Enter to select this grouping.`}
               onClick={() => props.onNodeClick(props.node.id, parent.id, false)}
               tabIndex="0"
             >

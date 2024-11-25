@@ -475,7 +475,15 @@ export function HypergraphNodeComponentKeyboardOnly(
         tabindex="0"
         aria-label={
           nonFocusedParentIds().length === 0
-            ? `No current groupings. ${props.node.displayName} belongs to 0 additional groups. Press h to return to previous node.`
+            ? `${
+                props.parentFocusId === "-1"
+                  ? "No current groupings."
+                  : `Currently grouping by ${
+                      props.nodeGraph[props.parentFocusId].displayName
+                    }. `
+              } ${
+                props.node.displayName
+              } belongs to 0 additional groups. Press h to return to previous node.`
             : `Currently grouping by ${
                 props.nodeGraph[props.parentFocusId].displayName
               }. ${props.node.displayName} belongs to ${

@@ -206,7 +206,7 @@ export function TraversalOutputComponentKeyboardParentFocus(
       } else {
         titleSection?.focus();
       }
-    } else if (event.key === "p") {
+    } else if (event.key === "g") {
       const parentContextGroup = document.getElementById(`parent-context`);
       parentContextGroup?.focus();
     } else if (event.key === "Backspace") {
